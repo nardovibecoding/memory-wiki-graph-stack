@@ -1,0 +1,66 @@
+# llm-wiki-stack configuration
+# Copy to ~/.config/llm-wiki-stack/config.yaml or set LLM_WIKI_CONFIG env var
+
+# Wiki directory (your knowledge base)
+wiki_dir: ~/wiki
+
+# Memory directory (Claude Code auto-memory)
+memory_dir: ~/.claude/projects/default/memory
+
+# Optional: memo directory for ephemeral notes
+memo_dir: ~/memo
+
+# Graph settings
+graph:
+  # Input graph (e.g., from graphify or other code graph tool)
+  input: ~/graph/graph.json
+  # Output unified graph (merged wiki + memory + code)
+  output: ~/graph/graph_unified.json
+
+# Search settings
+search:
+  # Embedding model (runs locally via @huggingface/transformers)
+  model: all-MiniLM-L6-v2
+  # Cache file for embeddings
+  cache: ~/.cache/llm-wiki-stack/embeddings.json
+  # BM25 field weights
+  weights:
+    title: 3
+    description: 2
+    body: 1
+  # Recency boost window (days)
+  recency_boost_days: 7
+
+# Lint settings
+lint:
+  # Schema: required frontmatter fields
+  required_fields: [title, type, created, updated]
+  # Valid types
+  valid_types: [user, feedback, project, reference, convo, research, memo, bug, lesson, article]
+  # Memo TTL (days) for auto-expiry
+  memo_ttl_days: 7
+  # Graph freshness warning threshold (hours)
+  graph_stale_hours: 24
+  # Files/dirs to skip
+  skip_files: [MEMORY.md, memory_stats.json]
+  skip_dirs: [archive, .git, node_modules, __pycache__]
+
+# Lifecycle settings
+lifecycle:
+  # Importance decay thresholds
+  decay_mild_days: 7      # -2 importance
+  decay_heavy_days: 30    # -5 importance
+  # Maturity promotion thresholds (access_count)
+  promote_draft: 10       # draft -> validated
+  promote_validated: 25   # validated -> core
+  # Conversation pruning
+  convo_max_age_days: 14
+  convo_min_importance: 20
+
+# Cron settings (daily maintenance)
+cron:
+  # Hour and minute for daily run (24h format)
+  hour: 4
+  minute: 7
+  # LLM CLI command for LLM-powered phases
+  llm_cli: claude

@@ -93,6 +93,26 @@ def load_current_ruleset() -> str:
             rules.append(f"[{tag}]\n{m.group(1).strip()}")
     return "\n\n".join(rules) if rules else "(no rules found in script)"
 
+# ── Cross-candidate dedup ─────────────────────────────────────────────────────
+
+def _word_set(text: str) -> set[str]:
+    return {w.lower() for w in re.findall(r"\w{4,}", text)}
+
+def find_duplicate_candidates(lessons: list[dict], threshold: float = 0.4) -> list[tuple[int, int, float]]:
+    """Return (i, j, jaccard) pairs where candidates are suspiciously similar."""
+    pairs = []
+    for i in range(len(lessons)):
+        a = _word_set(lessons[i]["title"] + " " + lessons[i]["body"])
+        for j in range(i + 1, len(lessons)):
+            b = _word_set(lessons[j]["title"] + " " + lessons[j]["body"])
+            if not a or not b:
+                continue
+            score = len(a & b) / len(a | b)
+            if score >= threshold:
+                pairs.append((i, j, round(score, 2)))
+    return pairs
+
+
 # ── Lesson loading ────────────────────────────────────────────────────────────
 
 def parse_frontmatter(text: str) -> tuple[dict, str]:
@@ -259,16 +279,15 @@ async def run_committee(lesson: dict, ruleset: str) -> dict:
 
 # ── Apply promotion ───────────────────────────────────────────────────────────
 
-def apply_promotion(lesson: dict, rule_text: str) -> None:
-    """Update lesson frontmatter: status → promoted, add rule_text."""
+def apply_promotion(lesson: dict, rule_text: str, rule_num: int | None = None) -> None:
+    """Update lesson frontmatter: status → promoted, add rule_text + system_prompt_rule."""
     path = lesson["path"]
     raw = path.read_text()
-    # Update status
     raw = re.sub(r"^status:.*$", "status: promoted", raw, flags=re.MULTILINE)
-    # Add rule_text field if not present
     if "rule_text:" not in raw:
         raw = raw.replace("\nupdated:", f"\nrule_text: \"{rule_text}\"\nupdated:", 1)
-    # write_md_file handles updated: stamp
+    if rule_num is not None and "system_prompt_rule:" not in raw:
+        raw = raw.replace("\nupdated:", f"\nsystem_prompt_rule: {rule_num}\nupdated:", 1)
     write_md_file(path, raw)
 
 # ── Write rules to build_system_prompt.py ────────────────────────────────────
@@ -324,6 +343,14 @@ async def main():
     if args.limit:
         candidates = candidates[: args.limit]
 
+    # Cross-candidate dedup check
+    dupes = find_duplicate_candidates(candidates)
+    if dupes:
+        print(f"WARNING: {len(dupes)} near-duplicate candidate pair(s) (Jaccard >= 0.4):")
+        for i, j, score in dupes:
+            print(f"  [{score}] {candidates[i]['title']}  <->  {candidates[j]['title']}")
+        print("  Consider merging before promoting.\n")
+
     print(f"Processing {len(candidates)} pending lessons with 4-voter committee...\n")
 
     results = []
@@ -362,13 +389,8 @@ async def main():
     if args.apply or args.write_rules:
         lesson_map = {str(l["path"]): l for l in candidates}
 
-        if args.apply:
-            print(f"\nApplying {len(promoted)} promotions (frontmatter)...")
-            for r in promoted:
-                lesson = lesson_map[r["path"]]
-                apply_promotion(lesson, r["rule_text"])
-                print(f"  Updated: {lesson['path'].name}")
-
+        # Compute rule numbers first if --write-rules (so frontmatter gets stamped correctly)
+        rule_num_map: dict[str, int] = {}
         if args.write_rules:
             rule_texts = [r["rule_text"] for r in promoted if r["rule_text"]]
             if rule_texts:
@@ -376,12 +398,20 @@ async def main():
                 try:
                     assigned = write_rules_to_prompt(rule_texts)
                     for r, n in zip(promoted, assigned):
+                        rule_num_map[r["path"]] = n
                         print(f"  Rule {n}: {r['rule_text']}")
-                    print("Rebuild: run `python3 ~/.claude/scripts/build_system_prompt.py` to verify.")
                 except Exception as e:
                     print(f"  ERROR writing rules: {e}")
             else:
-                print("\nNo rule texts to write (all Opus calls failed?).")
+                print("\nNo rule texts to write.")
+
+        if args.apply:
+            print(f"\nApplying {len(promoted)} promotions (frontmatter)...")
+            for r in promoted:
+                lesson = lesson_map[r["path"]]
+                apply_promotion(lesson, r["rule_text"], rule_num_map.get(r["path"]))
+                print(f"  Updated: {lesson['path'].name}")
+
 
         print("Done.")
     else:

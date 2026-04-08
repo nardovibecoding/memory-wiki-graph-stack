@@ -51,8 +51,8 @@ A modular toolkit that turns a folder of markdown files into a self-maintaining 
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/nardovibecoding/llm-wiki-stack.git
-cd llm-wiki-stack
+git clone https://github.com/nardovibecoding/memory-wiki-graph-stack.git
+cd memory-wiki-graph-stack
 cp config.yaml ~/.config/llm-wiki-stack/config.yaml
 # Edit config.yaml with your paths
 ```

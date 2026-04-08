@@ -1,6 +1,9 @@
-"""Shared config loader for llm-wiki-stack scripts."""
+"""Shared config loader + file write utilities for llm-wiki-stack scripts."""
 
+import json
 import os
+import re
+from datetime import date
 from pathlib import Path
 
 try:
@@ -39,3 +42,35 @@ def load_config():
         "lint": config.get("lint", {}),
         "lifecycle": config.get("lifecycle", {}),
     }
+
+
+# ── Write utilities ───────────────────────────────────────────────────────────
+
+def write_md_file(path: "Path | str", content: str) -> None:
+    """Write a markdown file, ensuring frontmatter updated: is stamped to today.
+
+    Works for both wiki (NardoWorld) and memory files.
+    If frontmatter has an updated: field, replaces it. Otherwise inserts after title:.
+    Creates parent dirs if needed.
+    """
+    path = Path(path)
+    today = date.today().isoformat()
+    # Stamp updated: if frontmatter present
+    if content.startswith("---"):
+        if re.search(r"^updated:.*$", content, re.MULTILINE):
+            content = re.sub(r"^updated:.*$", f"updated: {today}", content, flags=re.MULTILINE)
+        else:
+            # Insert after first --- block's last field (before closing ---)
+            content = re.sub(r"(\n---\n)", f"\nupdated: {today}\\1", content, count=1)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+
+
+def write_graph(path: "Path | str", data: dict) -> None:
+    """Write graph JSON, stamping data['meta']['updated_at'] to today's ISO date."""
+    path = Path(path)
+    if "meta" not in data:
+        data["meta"] = {}
+    data["meta"]["updated_at"] = date.today().isoformat()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2))

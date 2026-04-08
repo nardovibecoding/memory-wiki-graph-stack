@@ -30,7 +30,7 @@ from collections import defaultdict
 HOME = Path.home()
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lint", "scripts"))
-from config_loader import load_config
+from config_loader import load_config, write_graph
 _cfg = load_config()
 GRAPH_IN = _cfg["graph_input"]
 GRAPH_OUT = _cfg["graph_output"]
@@ -313,10 +313,9 @@ def main():
         "links": deduped_links
     }
 
-    # 9. Write
+    # 9. Write (write_graph stamps meta.updated_at)
     print(f"\nWriting unified graph to {GRAPH_OUT}...")
-    with open(GRAPH_OUT, 'w') as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
+    write_graph(GRAPH_OUT, output)
 
     size_mb = os.path.getsize(GRAPH_OUT) / 1024 / 1024
 

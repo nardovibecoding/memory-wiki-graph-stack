@@ -34,6 +34,10 @@ import yaml
 # ── Config ────────────────────────────────────────────────────────────────────
 
 _CONFIG_PATH = Path.home() / ".config" / "llm-wiki-stack" / "config.yaml"
+_LINT_SCRIPTS = Path(__file__).parent.parent / "lint" / "scripts"
+if str(_LINT_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_LINT_SCRIPTS))
+from config_loader import write_md_file  # noqa: E402
 
 def _load_config() -> dict:
     config = {}
@@ -259,16 +263,13 @@ def apply_promotion(lesson: dict, rule_text: str) -> None:
     """Update lesson frontmatter: status → promoted, add rule_text."""
     path = lesson["path"]
     raw = path.read_text()
-    today = date.today().isoformat()
     # Update status
     raw = re.sub(r"^status:.*$", "status: promoted", raw, flags=re.MULTILINE)
-    # Update updated date
-    raw = re.sub(r"^updated:.*$", f"updated: {today}", raw, flags=re.MULTILINE)
     # Add rule_text field if not present
     if "rule_text:" not in raw:
-        raw = re.sub(r"^(---\s*\n)", r"\1", raw)  # noop anchor
         raw = raw.replace("\nupdated:", f"\nrule_text: \"{rule_text}\"\nupdated:", 1)
-    path.write_text(raw)
+    # write_md_file handles updated: stamp
+    write_md_file(path, raw)
 
 # ── Write rules to build_system_prompt.py ────────────────────────────────────
 

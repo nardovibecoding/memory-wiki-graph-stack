@@ -201,8 +201,19 @@ def lint_schema(files, report):
         updated = fm.get("updated")
         if updated:
             d = days_since(updated)
-            if d > 180:
+            if d is not None and d > 180:
                 report.add("info", "staleness", fpath, f"Not updated in {d} days")
+
+        # Check mtime newer than frontmatter updated: (file edited but frontmatter not bumped)
+        if updated:
+            try:
+                fm_date = datetime.strptime(str(updated)[:10], "%Y-%m-%d").date()
+                file_mtime = date.fromtimestamp(os.path.getmtime(path))
+                if (file_mtime - fm_date).days > 0:
+                    report.add("info", "staleness", fpath,
+                               f"File edited {file_mtime} but updated: is {fm_date} — bump frontmatter?")
+            except (ValueError, OSError):
+                pass
 
 
 def lint_index(files, report, fix=False):
@@ -420,6 +431,18 @@ def lint_graph_sync(files, report):
             report.add("info", "graph_sync", str(GRAPH_JSON),
                        f"{len(missing_from_graph)} files ({pct:.0f}%) missing from graph. "
                        f"Run graph_merge.py to sync.")
+        # Check meta.updated_at exists and is not stale
+        meta = graph.get("meta", {})
+        updated_at = meta.get("updated_at")
+        if not updated_at:
+            report.add("warning", "graph_sync", str(GRAPH_JSON),
+                       "Graph missing meta.updated_at — use write_graph() to write it.")
+        else:
+            age_days = days_since(updated_at)
+            if age_days is not None and age_days > 1:
+                report.add("info", "graph_sync", str(GRAPH_JSON),
+                           f"meta.updated_at is {age_days}d old — run graph_merge.py to refresh.")
+
     except Exception as e:
         report.add("error", "graph_sync", str(GRAPH_JSON), f"Cannot parse graph: {e}")
 

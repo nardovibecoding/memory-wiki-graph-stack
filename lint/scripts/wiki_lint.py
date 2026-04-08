@@ -42,8 +42,8 @@ SKIP_DIRS = {"archive", ".git", "node_modules", "__pycache__", "sessions"}
 # Unified schema required fields
 REQUIRED_FM = {"title", "type", "created", "updated"}
 OPTIONAL_FM = {"tags", "status", "importance", "maturity", "source"}
-VALID_TYPES = {"user", "feedback", "project", "reference", "convo", "research", "memo", "bug", "lesson", "article"}
-VALID_STATUSES = {"draft", "validated", "core", "active", "archived", "expired", None}
+VALID_TYPES = {"user", "feedback", "project", "reference", "convo", "research", "memo", "bug", "lesson", "anti-pattern", "article"}
+VALID_STATUSES = {"draft", "validated", "core", "active", "archived", "expired", "promoted", "pending", None}
 VALID_MATURITIES = {"draft", "validated", "core", None}
 
 # Memo TTL (days)
@@ -382,6 +382,7 @@ def lint_stale_claims(files, report):
 
 GRAPH_JSON = _cfg["graph_output"]
 GRAPH_MERGE_SCRIPT = _cfg["graph_merge_script"]
+LESSONS_DIR = WIKI_DIR / "lessons"
 
 
 def lint_graph_sync(files, report):
@@ -423,11 +424,104 @@ def lint_graph_sync(files, report):
         report.add("error", "graph_sync", str(GRAPH_JSON), f"Cannot parse graph: {e}")
 
 
+def _word_set(text):
+    """Lowercase word set (4+ chars) for Jaccard comparison."""
+    return set(re.findall(r"\b\w{4,}\b", text.lower()))
+
+
+def lint_semantic_dedup(files, report, threshold=0.75):
+    """Find near-duplicate wiki files via Jaccard word-set similarity.
+
+    Only runs on wiki files (memory convos excluded — too noisy).
+    Opt-in via --semantic flag due to O(n²) cost.
+    """
+    wiki_files = [
+        (fp, path)
+        for fp, path in files.items()
+        if str(WIKI_DIR) in fp and not path.name.startswith("convo_")
+    ]
+
+    texts = {}
+    for fp, path in wiki_files:
+        try:
+            _, body = parse_frontmatter(path.read_text())
+            words = _word_set(body)
+            if words:
+                texts[fp] = (path, words)
+        except Exception:
+            pass
+
+    items = list(texts.items())
+    flagged = set()
+    for i in range(len(items)):
+        fp_a, (_, words_a) = items[i]
+        for j in range(i + 1, len(items)):
+            fp_b, (_, words_b) = items[j]
+            union = words_a | words_b
+            if not union:
+                continue
+            sim = len(words_a & words_b) / len(union)
+            if sim >= threshold:
+                pair_key = tuple(sorted([fp_a, fp_b]))
+                if pair_key not in flagged:
+                    flagged.add(pair_key)
+                    rel_a = os.path.relpath(fp_a, Path.home())
+                    rel_b = os.path.relpath(fp_b, Path.home())
+                    report.add("warning", "semantic_dedup", fp_a,
+                               f"Near-duplicate ({sim:.0%}): {rel_a} ↔ {rel_b}")
+
+
+def lint_lesson_election(report):
+    """Audit NardoWorld/lessons/ for missing or pending promotion status.
+
+    Each lesson/anti-pattern file should have:
+      status: promoted  — rule is encoded in build_system_prompt.py
+      status: pending   — lesson exists but not yet in system prompt
+
+    Files missing 'status' are flagged as schema gaps (fixable).
+    Files with 'status: pending' are flagged for promotion review.
+    """
+    if not LESSONS_DIR.exists():
+        return
+
+    missing_status = []
+    pending = []
+
+    for lf in sorted(LESSONS_DIR.glob("*.md")):
+        try:
+            fm, _ = parse_frontmatter(lf.read_text())
+        except Exception:
+            continue
+        if fm is None:
+            missing_status.append(lf)
+            continue
+        status = fm.get("status")
+        if status is None:
+            missing_status.append(lf)
+        elif status == "pending":
+            pending.append(lf)
+
+    if missing_status:
+        sample = ", ".join(f.stem for f in missing_status[:5])
+        suffix = "..." if len(missing_status) > 5 else ""
+        report.add("warning", "lesson_missing_status", str(LESSONS_DIR),
+                   f"{len(missing_status)} lesson(s) missing 'status' field: {sample}{suffix}",
+                   fixable=False)
+
+    if pending:
+        sample = ", ".join(f.stem for f in pending[:5])
+        suffix = "..." if len(pending) > 5 else ""
+        report.add("info", "pending_election", str(LESSONS_DIR),
+                   f"{len(pending)} lesson(s) pending promotion to system prompt: {sample}{suffix}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Unified wiki lint")
     parser.add_argument("--fix", action="store_true", help="Auto-fix safe issues")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--scope", choices=["memory", "wiki", "all"], default="all")
+    parser.add_argument("--semantic", action="store_true",
+                        help="Run semantic dedup check (slow, O(n²))")
     args = parser.parse_args()
 
     dirs = []
@@ -451,6 +545,9 @@ def main():
     lint_memos(report)
     lint_stale_claims(files, report)
     lint_graph_sync(files, report)
+    lint_lesson_election(report)
+    if args.semantic:
+        lint_semantic_dedup(files, report)
 
     # Auto-fix: strip broken wikilinks + rebuild indexes
     if args.fix:

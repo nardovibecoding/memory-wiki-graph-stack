@@ -1,4 +1,4 @@
-# llm-wiki-stack
+# memory-wiki-graph-stack
 
 A complete, production-grade personal knowledge base powered by LLMs. Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), but built as a working system.
 
@@ -53,7 +53,7 @@ A modular toolkit that turns a folder of markdown files into a self-maintaining 
 ```bash
 git clone https://github.com/nardovibecoding/memory-wiki-graph-stack.git
 cd memory-wiki-graph-stack
-cp config.yaml ~/.config/llm-wiki-stack/config.yaml
+cp config.yaml ~/.config/memory-wiki-graph-stack/config.yaml
 # Edit config.yaml with your paths
 ```
 
@@ -197,7 +197,7 @@ The `/lint` and `/recall` skills live in [claude-skills](https://github.com/nard
 
 ## Compared to Karpathy's LLM Wiki
 
-| Feature | Karpathy's concept | llm-wiki-stack |
+| Feature | Karpathy's concept | memory-wiki-graph-stack |
 |---------|-------------------|----------------|
 | Architecture | 3 layers (raw/wiki/schema) | Same 3 layers, implemented |
 | Ingest | Described | Auto via hooks + cron |

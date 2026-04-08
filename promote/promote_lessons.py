@@ -293,12 +293,20 @@ def apply_promotion(lesson: dict, rule_text: str, rule_num: int | None = None) -
 # ── Write rules to build_system_prompt.py ────────────────────────────────────
 
 def write_rules_to_prompt(rule_texts: list[str]) -> list[int]:
-    """Append new behavioral rules to build_system_prompt.py. Returns new rule numbers."""
+    """Append new behavioral rules to build_system_prompt.py. Returns new rule numbers.
+
+    Backup saved to build_system_prompt.py.bak before any write.
+    Restore with: cp ~/.claude/scripts/build_system_prompt.py.bak ~/.claude/scripts/build_system_prompt.py
+    """
     script = CFG["system_prompt_script"]
     if not script or not script.exists():
         raise FileNotFoundError(f"system_prompt_script not found: {script}")
 
     src = script.read_text()
+    # Backup before patching
+    bak = script.with_suffix(".py.bak")
+    bak.write_text(src)
+    print(f"  Backup: {bak}")
 
     # Find last rule number in behavioral_rules block
     block_m = re.search(r"<behavioral_rules>(.*?)</behavioral_rules>", src, re.DOTALL)

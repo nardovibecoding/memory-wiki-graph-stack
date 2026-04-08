@@ -174,6 +174,27 @@ This stack works standalone, but is designed to integrate with [Claude Code](htt
 - **Hooks**: Session hooks auto-file knowledge, monitor sync, and trigger graph rebuilds
 - **CLAUDE.md**: Schema rules live in your CLAUDE.md so the LLM follows them
 
+### Skills
+
+The `/lint` and `/recall` skills live in [claude-skills](https://github.com/nardovibecoding/claude-skills). Install them by cloning that repo and copying to `~/.claude/skills/`.
+
+**`/lint`** — unified audit + fix + promote, three phases:
+1. Deterministic scan (`wiki_lint.py`) — schema, orphans, dead links, stale refs, cross-refs, expired memos, graph sync
+2. LLM deep audit — contradictions, gap detection, stale claims, unused skills
+3. Promote chain — runs `promote/promote_lessons.py` on pending lessons, shows votes + rule text, asks for confirmation before applying
+
+```
+/lint          # full run (Phase 1 + 2 + 3)
+/lint --quick  # Phase 1 only (fast, no LLM)
+/lint --fix    # Phase 1 with auto-fix + index rebuild + graph sync
+```
+
+**`/recall`** — hybrid search across memory + wiki (BM25 + vector + tag filtering):
+```
+/recall authentication flow
+/recall #trading
+```
+
 ## Compared to Karpathy's LLM Wiki
 
 | Feature | Karpathy's concept | llm-wiki-stack |

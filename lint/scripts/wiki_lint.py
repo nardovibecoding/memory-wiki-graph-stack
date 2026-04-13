@@ -42,7 +42,7 @@ SKIP_DIRS = {"archive", ".git", "node_modules", "__pycache__", "sessions"}
 # Unified schema required fields
 REQUIRED_FM = {"title", "type", "created", "updated"}
 OPTIONAL_FM = {"tags", "status", "importance", "maturity", "source"}
-VALID_TYPES = {"user", "feedback", "project", "reference", "convo", "research", "memo", "bug", "lesson", "anti-pattern", "article"}
+VALID_TYPES = {"user", "feedback", "project", "reference", "convo", "research", "memo", "bug", "lesson", "article"}
 VALID_STATUSES = {"draft", "validated", "core", "active", "archived", "expired", "promoted", "pending", None}
 VALID_MATURITIES = {"draft", "validated", "core", None}
 
@@ -497,7 +497,7 @@ def lint_semantic_dedup(files, report, threshold=0.75):
 def lint_lesson_election(report):
     """Audit NardoWorld/lessons/ for missing or pending promotion status.
 
-    Each lesson/anti-pattern file should have:
+    Each lesson file should have:
       status: promoted  — rule is encoded in build_system_prompt.py
       status: pending   — lesson exists but not yet in system prompt
 
@@ -543,8 +543,8 @@ def main():
     parser.add_argument("--fix", action="store_true", help="Auto-fix safe issues")
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--scope", choices=["memory", "wiki", "all"], default="all")
-    parser.add_argument("--semantic", action="store_true",
-                        help="Run semantic dedup check (slow, O(n²))")
+    parser.add_argument("--no-semantic", action="store_true",
+                        help="Skip semantic dedup check (slow, O(n²))")
     args = parser.parse_args()
 
     dirs = []
@@ -569,7 +569,7 @@ def main():
     lint_stale_claims(files, report)
     lint_graph_sync(files, report)
     lint_lesson_election(report)
-    if args.semantic:
+    if not args.no_semantic:
         lint_semantic_dedup(files, report)
 
     # Auto-fix: strip broken wikilinks + rebuild indexes

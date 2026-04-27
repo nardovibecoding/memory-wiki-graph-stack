@@ -4,6 +4,19 @@ A complete, production-grade personal knowledge base powered by LLMs. Inspired b
 
 **You read it; the LLM writes it. The stack maintains it.**
 
+
+## Quickstart
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nardovibecoding/memory-wiki-graph-stack/main/install.sh | bash
+```
+
+**Platform**: macOS + Linux. Requires Python 3.10+.
+
+This scaffolds a vault under `~/wiki` (override with `VAULT_ROOT=...`), seeds `config.yaml`, and stages toolkit symlinks. Idempotent — safe to re-run.
+
+---
+
 ## What is this?
 
 A modular toolkit that turns a folder of markdown files into a self-maintaining knowledge wiki with:

@@ -176,7 +176,7 @@ This stack works standalone, but is designed to integrate with [Claude Code](htt
 
 ### Skills
 
-The `/lint` and `/recall` skills live in [claude-skills](https://github.com/nardovibecoding/claude-skills). Install them by cloning that repo and copying to `~/.claude/skills/`.
+The `/lint` and `/recall` skills live in claude-skills. Install them by cloning that repo and copying to `~/.claude/skills/`.
 
 **`/lint`** — unified audit + fix + promote, three phases:
 1. Deterministic scan (`wiki_lint.py`) — schema, orphans, dead links, stale refs, cross-refs, expired memos, graph sync

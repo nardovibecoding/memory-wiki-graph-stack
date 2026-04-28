@@ -279,7 +279,7 @@ async def run_committee(lesson: dict, ruleset: str) -> dict:
 
 # ── Apply promotion ───────────────────────────────────────────────────────────
 
-def apply_promotion(lesson: dict, rule_text: str, rule_num: int | None = None) -> None:
+def apply_promotion(lesson: dict, rule_text: str, rule_num: "int | None" = None) -> None:
     """Update lesson frontmatter: status → promoted, add rule_text + system_prompt_rule."""
     path = lesson["path"]
     raw = path.read_text()
